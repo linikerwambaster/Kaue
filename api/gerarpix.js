@@ -1,54 +1,34 @@
 // Vercel Function: GET /api/gerarpix?amount=..&nome=..
-// A chave da GladePay vem da variável de ambiente GLADEPAY_API_KEY (painel da Vercel).
+// Cria o Pix chamando o fluxo do N8N (PIX - Create V2), que fala com a GladePay.
+// Variável opcional: N8N_PIX_CREATE_URL (padrão abaixo).
 const { randomUUID } = require("crypto");
 
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
 
-const MAPA_UTM = {
-  utm_source: 'utmSource', utm_medium: 'utmMedium', utm_campaign: 'utmCampaign',
-  utm_content: 'utmContent', utm_term: 'utmTerm', src: 'utmSrc', sck: 'utmSck',
-};
+const URL_PADRAO = "https://webhook.linikerwambaster.com.br/webhook/pix-create-v2";
+const MIN_CENTAVOS = 500;      // R$ 5,00 (a GladePay recusa valores muito baixos)
+const MAX_CENTAVOS = 700499;   // R$ 7.000,00 + taxa opcional de R$ 4,99
 
 module.exports = async function handler(req, res) {
   const env = process.env;
   const url = new URL(req.url, "https://" + (req.headers.host || "localhost"));
-  const valor = parseFloat(String(url.searchParams.get('amount') || '0').replace(',', '.')) || 0;
+  const valor = parseFloat(String(url.searchParams.get("amount") || "0").replace(",", ".")) || 0;
   const centavos = Math.round(valor * 100);
-  const nome = (url.searchParams.get('nome') || '').trim().slice(0, 60);
 
   let erro = null;
   let pix = null;
 
-  // Mínimo R$ 1,00 e máximo R$ 7.000,00 + taxa opcional de R$ 4,99
-  if (centavos < 100 || centavos > 700499) {
-    erro = 'Valor inválido. Volte e escolha um valor entre R$ 1,00 e R$ 7.000,00.';
-  } else if (!env.GLADEPAY_API_KEY) {
-    erro = 'Pagamento indisponível no momento. Tente novamente em instantes.';
-    console.error('GLADEPAY_API_KEY não configurada');
+  if (centavos < MIN_CENTAVOS || centavos > MAX_CENTAVOS) {
+    erro = "Valor inválido. Volte e escolha um valor entre R$ 5,00 e R$ 7.000,00.";
   } else {
-    const corpo = {
-      amountCents: centavos,
-      reference: 'kaue-' + Date.now() + '-' + randomUUID().slice(0, 8),
-      description: 'Doação - Campanha do Kauê',
-      expiresInSeconds: 3600,
-    };
-    if (nome && nome.toLowerCase() !== 'anonimo') corpo.customerName = nome;
-    for (const [q, campo] of Object.entries(MAPA_UTM)) {
-      const v = url.searchParams.get(q);
-      if (v) corpo[campo] = v.slice(0, 200);
-    }
-
     try {
-      const base = (env.GLADEPAY_BASE_URL || 'https://app.gladepay.com.br/v1').replace(/\/$/, '');
-      const resp = await fetch(base + '/deposito', {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + env.GLADEPAY_API_KEY,
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          'User-Agent': 'Mozilla/5.0 (compatible; KaueDoacoes/1.0)',
-        },
-        body: JSON.stringify(corpo),
+      const resp = await fetch(env.N8N_PIX_CREATE_URL || URL_PADRAO, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          amount: centavos / 100,
+          ref: "kaue-" + Date.now() + "-" + randomUUID().slice(0, 8),
+        }),
       });
       const texto = await resp.text();
       let json = {};
@@ -56,12 +36,12 @@ module.exports = async function handler(req, res) {
       if (resp.ok && json.qrCodeText) {
         pix = json;
       } else {
-        erro = 'Não foi possível gerar o Pix agora. Tente novamente em instantes.';
-        console.error('GladePay erro HTTP ' + resp.status + ': ' + (json.error || texto.replace(/\s+/g, ' ').slice(0, 300) || 'sem corpo'));
+        erro = "Não foi possível gerar o Pix agora. Tente novamente em instantes.";
+        console.error("N8N/GladePay erro HTTP " + resp.status + ": " + (json.message || json.error || texto.replace(/s+/g, " ").slice(0, 300) || "sem corpo"));
       }
     } catch (e) {
-      erro = 'Não foi possível gerar o Pix agora. Tente novamente em instantes.';
-      console.error('GladePay falha de conexão: ' + e.message);
+      erro = "Não foi possível gerar o Pix agora. Tente novamente em instantes.";
+      console.error("Falha de conexão com o N8N: " + e.message);
     }
   }
 
@@ -89,7 +69,7 @@ function pagina({ centavos, erro, pix }) {
     : `<div id="areaPagamento">
       <div class="pg-lbl">Valor da doação</div>
       <div class="pg-valor">R$ ${valorTxt}</div>
-      ${qrSrc ? `<div class="pg-qr"><img src="${esc(qrSrc)}" alt="QR Code Pix"></div>` : ''}
+      <div class="pg-qr" id="qrBox">${qrSrc ? `<img src="${esc(qrSrc)}" alt="QR Code Pix">` : ''}</div>
       <div class="pg-timer">⏱ Expira em <span id="contador">--:--</span></div>
       <div class="pg-lbl">Pix copia e cola</div>
       <div class="pg-codigo" id="codigoPix">${esc(pix.qrCodeText)}</div>
@@ -116,7 +96,11 @@ function pagina({ centavos, erro, pix }) {
   const script = erro ? '' : `<script>
 (function(){
   var ID = ${JSON.stringify(idTransacao)};
-  var EXPIRA = new Date(${JSON.stringify(pix.expiresAt || '')}).getTime();
+  var EXPIRA = Date.now() + 3600 * 1000;
+  var qrBox = document.getElementById('qrBox');
+  if (qrBox && !qrBox.firstChild && window.QRCode) {
+    new QRCode(qrBox, { text: document.getElementById('codigoPix').innerText.trim(), width: 206, height: 206, correctLevel: QRCode.CorrectLevel.M });
+  }
   var btn = document.getElementById('btnCopiar');
   var codigo = document.getElementById('codigoPix');
   var contador = document.getElementById('contador');
@@ -186,6 +170,7 @@ function pagina({ centavos, erro, pix }) {
 ${corpo}
   </div>
 </div>
+${erro ? '' : '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>'}
 ${script}
 </body>
 </html>`;
