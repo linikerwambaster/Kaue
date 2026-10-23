@@ -1,6 +1,6 @@
 body{background:var(--creme)}
 .pg-top{background:radial-gradient(ellipse 120% 90% at 50% -10%, #0353d4 0%, var(--azul) 50%, var(--azul-escuro) 100%);color:#fff;text-align:center;padding:1.6rem 0 3.6rem}
-.pg-top img{height:50px;margin:0 auto 1rem}
+.pg-top .pg-banner{width:100%;max-width:440px;height:auto;margin:0 auto 1rem;border-radius:16px;box-shadow:0 10px 30px -10px rgba(0,8,20,.5)}
 .pg-top h1{font-size:1.45rem;font-weight:800}
 .pg-top p{font-size:.88rem;color:rgba(255,255,255,.8);margin-top:.35rem}
 .pg-card{margin:-2.4rem auto 2rem;background:#fff;border:1px solid var(--borda);border-radius:var(--raio-lg);box-shadow:var(--sombra);padding:1.4rem 1.3rem 1.5rem;text-align:center}
