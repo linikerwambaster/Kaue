@@ -173,7 +173,7 @@ function pagina({ centavos, erro, pix }) {
 <body>
 <div class="pg-top">
   <div class="wrap">
-    <img src="/imagens/logocdb.png" alt="Causas do Bem">
+    <img class="pg-banner" src="/imagens/banner1cdb.webp" alt="Campanha do Kauê">
     <h1>Falta pouco para ajudar o Kauê 💙</h1>
     <p>Pague com Pix para concluir sua doação</p>
   </div>
