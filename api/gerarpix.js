@@ -46,15 +46,18 @@ module.exports = async function handler(req, res) {
           Authorization: 'Bearer ' + env.GLADEPAY_API_KEY,
           'Content-Type': 'application/json',
           Accept: 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; KaueDoacoes/1.0)',
         },
         body: JSON.stringify(corpo),
       });
-      const json = await resp.json().catch(() => ({}));
+      const texto = await resp.text();
+      let json = {};
+      try { json = JSON.parse(texto); } catch (e) { /* resposta não-JSON */ }
       if (resp.ok && json.qrCodeText) {
         pix = json;
       } else {
         erro = 'Não foi possível gerar o Pix agora. Tente novamente em instantes.';
-        console.error('GladePay erro HTTP ' + resp.status + ': ' + (json.error || 'desconhecido'));
+        console.error('GladePay erro HTTP ' + resp.status + ': ' + (json.error || texto.replace(/\s+/g, ' ').slice(0, 300) || 'sem corpo'));
       }
     } catch (e) {
       erro = 'Não foi possível gerar o Pix agora. Tente novamente em instantes.';
