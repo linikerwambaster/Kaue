@@ -1,0 +1,7 @@
+# Bloqueia acesso web a arquivos sensíveis
+<FilesMatch "^\.(env|git)">
+  Require all denied
+</FilesMatch>
+<Files "config.php">
+  Require all denied
+</Files>
