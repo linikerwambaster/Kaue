@@ -35,7 +35,7 @@ function goToStep2(){
   if(customVal && customVal>0) amount=customVal;
 
   if(!amount || amount<=0){alert('Por favor, selecione um valor ou digite um valor personalizado.');return;}
-  if(amount<1){alert('O valor mínimo para doação é de R$ 1,00.');return;}
+  if(amount<5){alert('O valor mínimo para doação é de R$ 5,00.');return;}
   if(amount>7000){alert('O valor máximo para doação é de R$ 7.000,00.');return;}
 
   selectedDonationAmount=Math.round(amount*100)/100;
