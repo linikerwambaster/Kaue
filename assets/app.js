@@ -116,7 +116,7 @@ function generateContribution(){
     if(val) utmString+='&'+key+'='+encodeURIComponent(val);
   });
 
-  var pixUrl='gerarpix/index.php'
+  var pixUrl='/api/gerarpix'
     +'?amount='+finalAmount.toFixed(2)
     +'&nome='+encodeURIComponent(nome)
     +'&telefone='+encodeURIComponent(telefone)
